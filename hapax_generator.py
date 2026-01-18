@@ -76,11 +76,12 @@ def generate_drum_def(
     ]
 
     # Add drum lanes for each pad
-    for i, pad in enumerate(pads, start=1):
-        note = pad['note']
+    # Convert Ableton internal note to MIDI note: midi_note = 128 - internal_note
+    for i, pad in enumerate(pads):
+        midi_note = 128 - pad['note']
         name = _sanitize_name(pad['name'])
         # Format: lane:fill:len:note name
-        lines.append(f"{i}:NULL:NULL:{note} {name}")
+        lines.append(f"{i + 1}:NULL:NULL:{midi_note} {name}")
 
     lines.append("[/DRUMLANES]")
 

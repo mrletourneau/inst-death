@@ -144,6 +144,9 @@ def _extract_drum_pads(drum_rack: ET.Element) -> list[dict[str, Any]]:
         return pads
 
     for branch in branches.findall('.//DrumBranch'):
+        # Debug: print all child elements to see structure
+        print(f"DrumBranch children: {[child.tag for child in branch]}")
+
         # Get the receiving note (MIDI note number)
         receiving_note = branch.find('.//ReceivingNote')
         if receiving_note is None:
@@ -171,7 +174,12 @@ def _extract_drum_pads(drum_rack: ET.Element) -> list[dict[str, Any]]:
                 "name": pad_name
             })
 
-    # Sort by note number
-    pads.sort(key=lambda x: x['note'])
+    # Sort by note number (descending - highest internal note = lowest MIDI note)
+    # Ableton uses inverted internal IDs: 92 -> C1 (36), 91 -> C#1 (37), etc.
+    pads.sort(key=lambda x: x['note'], reverse=True)
+
+    # Debug: print extracted pads to verify order
+    for p in pads:
+        print(f"  Note {p['note']}: {p['name']}")
 
     return pads
