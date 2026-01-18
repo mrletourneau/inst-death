@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hapax Definition Generator</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Hapax Instrument Definition Generator</h1>
+        <p class="subtitle">Upload an Ableton .als file to generate Hapax instrument definitions</p>
+
+        <div id="upload-section" class="section">
+            <div id="dropzone" class="dropzone">
+                <input type="file" id="file-input" accept=".als" hidden>
+                <p>Drag & drop an .als file here<br>or click to browse</p>
+            </div>
+            <div id="file-info" class="file-info hidden"></div>
+        </div>
+
+        <div id="tracks-section" class="section hidden">
+            <h2>Tracks Found</h2>
+            <div id="tracks-list"></div>
+        </div>
+
+        <div id="generate-section" class="section hidden">
+            <button id="generate-btn" class="btn-primary">Generate Hapax Definitions</button>
+        </div>
+
+        <div id="status" class="status hidden"></div>
+    </div>
+
+    <script>
+        let uploadedFilename = null;
+        let parsedTracks = [];
+
+        // DOM elements
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const fileInfo = document.getElementById('file-info');
+        const tracksSection = document.getElementById('tracks-section');
+        const tracksList = document.getElementById('tracks-list');
+        const generateSection = document.getElementById('generate-section');
+        const generateBtn = document.getElementById('generate-btn');
+        const status = document.getElementById('status');
+
+        // Dropzone handlers
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        async function handleFile(file) {
+            if (!file.name.endsWith('.als')) {
+                showStatus('Please select an .als file', 'error');
+                return;
+            }
+
+            fileInfo.textContent = `Parsing: ${file.name}...`;
+            fileInfo.classList.remove('hidden');
+            showStatus('Uploading and parsing file...', 'info');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+
+                uploadedFilename = data.filename;
+                parsedTracks = data.tracks;
+
+                fileInfo.textContent = `Loaded: ${file.name}`;
+                renderTracks(data.tracks);
+                showStatus(`Found ${data.tracks.length} track(s) with instruments`, 'success');
+
+            } catch (error) {
+                showStatus(error.message, 'error');
+                fileInfo.classList.add('hidden');
+            }
+        }
+
+        function renderTracks(tracks) {
+            tracksList.innerHTML = '';
+
+            if (tracks.length === 0) {
+                tracksList.innerHTML = '<p class="no-tracks">No Instrument Racks or Drum Racks found in this file.</p>';
+                tracksSection.classList.remove('hidden');
+                generateSection.classList.add('hidden');
+                return;
+            }
+
+            tracks.forEach((track, idx) => {
+                const trackEl = document.createElement('div');
+                trackEl.className = 'track-item';
+                trackEl.dataset.trackIndex = track.index;
+
+                if (track.type === 'instrument_rack') {
+                    trackEl.innerHTML = renderInstrumentRack(track, idx);
+                } else if (track.type === 'drum_rack') {
+                    trackEl.innerHTML = renderDrumRack(track, idx);
+                }
+
+                tracksList.appendChild(trackEl);
+            });
+
+            tracksSection.classList.remove('hidden');
+            generateSection.classList.remove('hidden');
+        }
+
+        function renderInstrumentRack(track, idx) {
+            const macrosHtml = track.macros.map((m, i) =>
+                `<span class="macro-item">CC${i+1}: ${m}</span>`
+            ).join('');
+
+            return `
+                <div class="track-header">
+                    <label class="checkbox-label">
+                        <input type="checkbox" class="track-checkbox" data-type="instrument" checked>
+                        <span class="track-name">${track.name}</span>
+                        <span class="track-type">Instrument Rack</span>
+                    </label>
+                    <div class="channel-select">
+                        <label>Ch:</label>
+                        <select class="midi-channel">
+                            ${channelOptions(idx + 1)}
+                        </select>
+                    </div>
+                </div>
+                <div class="track-details">
+                    <div class="macros-list">${macrosHtml}</div>
+                </div>
+            `;
+        }
+
+        function renderDrumRack(track, idx) {
+            const pads = track.pads || [];
+            const groups = splitIntoGroups(pads, 8);
+
+            let groupsHtml = '';
+            groups.forEach((group, groupIdx) => {
+                const padsList = group.map(p =>
+                    `<span class="pad-item">${p.note}: ${p.name}</span>`
+                ).join('');
+
+                groupsHtml += `
+                    <div class="pad-group" data-group-index="${groupIdx}">
+                        <div class="group-header">
+                            <label class="checkbox-label">
+                                <input type="checkbox" class="group-checkbox" checked>
+                                <span>Part ${groupIdx + 1} (${group.length} pads)</span>
+                            </label>
+                            <div class="channel-select">
+                                <label>Ch:</label>
+                                <select class="group-midi-channel">
+                                    ${channelOptions(idx + groupIdx + 1)}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="pads-list">${padsList}</div>
+                    </div>
+                `;
+            });
+
+            return `
+                <div class="track-header">
+                    <label class="checkbox-label">
+                        <input type="checkbox" class="track-checkbox" data-type="drum" checked>
+                        <span class="track-name">${track.name}</span>
+                        <span class="track-type">Drum Rack (${pads.length} pads)</span>
+                    </label>
+                </div>
+                <div class="track-details drum-details">
+                    ${groupsHtml}
+                </div>
+            `;
+        }
+
+        function channelOptions(defaultChannel) {
+            let html = '';
+            for (let i = 1; i <= 16; i++) {
+                const selected = i === defaultChannel ? 'selected' : '';
+                html += `<option value="${i}" ${selected}>${i}</option>`;
+            }
+            return html;
+        }
+
+        function splitIntoGroups(arr, size) {
+            const groups = [];
+            for (let i = 0; i < arr.length; i += size) {
+                groups.push(arr.slice(i, i + size));
+            }
+            return groups;
+        }
+
+        // Generate button handler
+        generateBtn.addEventListener('click', async () => {
+            const selections = [];
+
+            document.querySelectorAll('.track-item').forEach(trackEl => {
+                const checkbox = trackEl.querySelector('.track-checkbox');
+                if (!checkbox.checked) return;
+
+                const trackIndex = parseInt(trackEl.dataset.trackIndex);
+                const track = parsedTracks.find(t => t.index === trackIndex);
+
+                if (track.type === 'instrument_rack') {
+                    const channel = parseInt(trackEl.querySelector('.midi-channel').value);
+                    selections.push({
+                        track_index: trackIndex,
+                        midi_channel: channel
+                    });
+                } else if (track.type === 'drum_rack') {
+                    const padGroups = [];
+                    const pads = track.pads || [];
+                    const groups = splitIntoGroups(pads, 8);
+
+                    trackEl.querySelectorAll('.pad-group').forEach((groupEl, groupIdx) => {
+                        const groupCheckbox = groupEl.querySelector('.group-checkbox');
+                        if (!groupCheckbox.checked) return;
+
+                        const groupChannel = parseInt(groupEl.querySelector('.group-midi-channel').value);
+                        const startIdx = groupIdx * 8;
+                        const endIdx = Math.min(startIdx + 8, pads.length);
+                        const padIndices = [];
+                        for (let i = startIdx; i < endIdx; i++) {
+                            padIndices.push(i);
+                        }
+
+                        padGroups.push({
+                            midi_channel: groupChannel,
+                            pad_indices: padIndices,
+                            part_number: groups.length > 1 ? groupIdx + 1 : null
+                        });
+                    });
+
+                    if (padGroups.length > 0) {
+                        selections.push({
+                            track_index: trackIndex,
+                            midi_channel: 1,
+                            pad_groups: padGroups
+                        });
+                    }
+                }
+            });
+
+            if (selections.length === 0) {
+                showStatus('Please select at least one track or pad group', 'error');
+                return;
+            }
+
+            showStatus('Generating definitions...', 'info');
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        filename: uploadedFilename,
+                        selections: selections
+                    })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Generation failed');
+                }
+
+                // Download the zip file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = uploadedFilename.replace('.als', '_hapax.zip');
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                showStatus('Download started!', 'success');
+
+            } catch (error) {
+                showStatus(error.message, 'error');
+            }
+        });
+
+        function showStatus(message, type) {
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.classList.remove('hidden');
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.classList.add('hidden');
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+</html>
