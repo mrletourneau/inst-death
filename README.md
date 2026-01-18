@@ -5,30 +5,26 @@
    |_ _|| \ | |/ ____|_   _|     |  _ \| ____|  / \|_   _| | | |
     | | |  \| | (___   | |  _____| | | |  _|   / _ \ | | | |_| |
     | | | |\  |\___ \  | | |_____| |_| | |___ / ___ \| | |  _  |
-   |___||_| \_|____/  |_|       |____/|_____/_/   \_\_| |_| |_|
+   |___||_| \_||____/  |_|       |____/|_____/_/   \_\_| |_| |_|
 
-        ☠️  SLAY YOUR ABLETON RACKS  ☠️  FEED THE HAPAX  ☠️
 ```
 
 > *Rip the guts out of your Ableton Live projects and forge them into Hapax instrument definitions.*
 
 ---
 
-## 💀 WHAT IS THIS
+## WHAT IS THIS
 
 INST-DEATH parses your `.als` files and extracts:
 - **Instrument Racks** → Macro names become CC assignments
 - **Drum Racks** → Pads become drum lane definitions
 
-No more manual transcription. No more typos. Just death.
-
 ---
 
-## 🔧 REQUIREMENTS
+## REQUIREMENTS
 
 - Python 3.10+
 - Flask
-- A soul to sacrifice (optional)
 
 ```bash
 pip install flask
@@ -36,27 +32,27 @@ pip install flask
 
 ---
 
-## ⚡ USAGE
+## USAGE
 
-**1. Summon the server:**
+**1. Start the server:**
 ```bash
 python app.py
 ```
 
-**2. Open the portal:** http://localhost:5000
+**2. Open the server:** http://localhost:5001
 
 **3. Feed it your .als file** (drag & drop or click)
 
-**4. Configure your kills:**
+**4. Configure your instrument definition files:**
 - Select which racks to extract
 - Assign MIDI channels (1-16)
 - Drum racks auto-split into groups of 8
 
-**5. Execute.** Download your `.zip` of death.
+**5. Execute.** Download your `.zip`.
 
 ---
 
-## 📄 OUTPUT FORMAT
+## OUTPUT FORMAT
 
 ### Instrument Rack → POLY Definition
 ```
@@ -107,7 +103,7 @@ OUTCHAN 2
 
 ---
 
-## 💀 TIPS FROM THE CRYPT
+## TROUBLESHOOTING
 
 | Problem | Solution |
 |---------|----------|
@@ -123,19 +119,4 @@ OUTCHAN 2
 Instrument Rack  →  {track_name}.txt
 Drum Rack        →  {track_name}_part1.txt, _part2.txt, ...
 Download         →  {project}_hapax.zip
-```
-
----
-
-```
-              ___
-           .-'   '-.
-          /  .-=-.  \
-         | (  (_)  ) |
-          \  '-.-'  /
-         _ '-.___.-' _
-        (__)       (__)
-
-   INST-DEATH: BECAUSE LIFE IS TOO
-   SHORT FOR MANUAL DATA ENTRY
 ```
